@@ -1,4 +1,5 @@
 from aiogram import types
+from keyboards import grab_candy_keyboard
 from aiogram.dispatcher import Dispatcher
 from config import ADMIN_ID, MIN_CANDY_POINT, MAX_CANDY_POINT
 from keyboards import grab_candy_keyboard
