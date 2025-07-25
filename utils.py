@@ -9,9 +9,9 @@ def load_users():
     except:
         return {}
 
-def save_users(users):
-    with open(USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(users, f, indent=4, ensure_ascii=False)
+def save_users(data):
+    with open("users_data.json", "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 def reset_grab_counts_daily():
     users = load_users()
