@@ -7,8 +7,12 @@ async def account_info(message: types.Message):
     users = load_users()
     uid = str(message.from_user.id)
 
-    if uid not in users:
-        users[uid] = {"balance": 0, "grab_count": 5, "bank": "", "recharged_this_week": 0}
+    users.setdefault(uid, {
+    "balance": 0,
+    "grab_count": 5,
+    "bank": "",
+    "recharged_this_week": 0
+})
         save_users(users)
 
     u = users[uid]
