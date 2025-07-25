@@ -3,6 +3,8 @@ from utils import load_users, save_users
 
 def register_account_handlers(dp: Dispatcher):
     dp.register_message_handler(account_info, text="👤 Tài Khoản")
+    dp.register_message_handler(request_recharge, commands=["nap"])
+    dp.register_message_handler(request_withdraw, commands=["rut"])
 
 async def account_info(message: types.Message):
     users = load_users()
