@@ -8,7 +8,7 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(set_bank, commands=["bank"])
 
 async def admin_panel(message: types.Message):
-    if str(message.from_user.id) not in ADMIN_IDS:
+    if message.from_user.id not in ADMIN_IDS:
         return await message.answer("❌ Bạn không có quyền.")
     await message.answer(
         "🔧 <b>Menu Quản Trị</b>\n"
@@ -17,7 +17,7 @@ async def admin_panel(message: types.Message):
     )
 
 async def set_balance(message: types.Message):
-    if str(message.from_user.id) not in ADMIN_IDS:
+    if message.from_user.id not in ADMIN_IDS:
         return
     try:
         _, uid, amount = message.text.split()
@@ -33,7 +33,7 @@ async def set_balance(message: types.Message):
         await message.reply("❌ Sai cú pháp. Dùng:\n/add <user_id> <số điểm>")
 
 async def set_bank(message: types.Message):
-    if str(message.from_user.id) not in ADMIN_IDS:
+    if message.from_user.id not in ADMIN_IDS:
         return
     try:
         _, uid, *stk = message.text.split()
