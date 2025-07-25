@@ -3,7 +3,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from config import BOT_TOKEN
-from keyboards import main_keyboard
+from keyboards import main_menu  # ✅ đúng với file keyboards.py bạn đang dùng
 from taikhoan import register_account_handlers
 from candy import register_candy_handlers
 from admin import register_admin_handlers
