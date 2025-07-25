@@ -8,12 +8,16 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(set_bank, commands=["bank"])
 
 async def admin_panel(message: types.Message):
-    if message.from_user.id not in ADMIN_IDS:
-        return await message.answer("Bạn không có quyền.")
-    await message.answer("⚙️ Gửi /add <user_id> <số điểm> để cộng điểm.\n/bank <user_id> <stk> để đặt STK.")
+    if str(message.from_user.id) not in ADMIN_IDS:
+        return await message.answer("❌ Bạn không có quyền.")
+    await message.answer(
+        "🔧 <b>Menu Quản Trị</b>\n"
+        "/add <user_id> <số điểm> — cộng điểm cho user\n"
+        "/bank <user_id> <stk> — đặt STK rút cho user"
+    )
 
 async def set_balance(message: types.Message):
-    if message.from_user.id not in ADMIN_IDS:
+    if str(message.from_user.id) not in ADMIN_IDS:
         return
     try:
         _, uid, amount = message.text.split()
@@ -26,10 +30,10 @@ async def set_balance(message: types.Message):
         save_users(users)
         await message.reply(f"✅ Đã cộng {amount:,} điểm cho {uid}")
     except:
-        await message.reply("❌ Sai cú pháp. /add <user_id> <số điểm>")
+        await message.reply("❌ Sai cú pháp. Dùng:\n/add <user_id> <số điểm>")
 
 async def set_bank(message: types.Message):
-    if message.from_user.id not in ADMIN_IDS:
+    if str(message.from_user.id) not in ADMIN_IDS:
         return
     try:
         _, uid, *stk = message.text.split()
@@ -41,4 +45,4 @@ async def set_bank(message: types.Message):
         save_users(users)
         await message.reply(f"✅ Đã đặt STK cho {uid}: {stk}")
     except:
-        await message.reply("❌ Sai cú pháp. /bank <user_id> <stk>")
+        await message.reply("❌ Sai cú pháp. Dùng:\n/bank <user_id> <stk>")
