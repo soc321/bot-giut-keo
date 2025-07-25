@@ -1,88 +1,64 @@
-from aiogram import types
-from keyboards import grab_candy_keyboard
-from aiogram.dispatcher import Dispatcher
-from config import ADMIN_ID, MIN_CANDY_POINT, MAX_CANDY_POINT
-from keyboards import grab_candy_keyboard
-from utils import load_json, save_json
+import json
 import random
-from datetime import datetime
+from aiogram import types, Dispatcher
+from config import ADMIN_IDS, MIN_GRAB, MAX_GRAB
+from keyboards import grab_candy_keyboard
+from utils import load_users, save_users
+
+HU_FILE = "hu_keo.json"
 
 def register_candy_handlers(dp: Dispatcher):
-    @dp.message_handler(lambda m: m.text == "🍬 Thả Kẹo")
-    async def drop_candy(msg: types.Message):
-        if msg.from_user.id != ADMIN_ID:
-            return await msg.reply("❌ Bạn không có quyền sử dụng chức năng này.")
+    dp.register_message_handler(throw_candy, text="🍬 Thả Kẹo")
+    dp.register_callback_query_handler(grab_candy, lambda c: c.data.startswith("grab_"))
 
-        candy_data = load_json("candy_data.json")
-        candy_id = str(len(candy_data) + 1)
-        num_portions = random.randint(2, 6)
-        candy_value = random.randint(MIN_CANDY_POINT, MAX_CANDY_POINT)
+def get_hu():
+    try:
+        with open(HU_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return None
 
-        candy_data[candy_id] = {
-            "value": candy_value,
-            "grabbed": 0,
-            "max_grabs": num_portions,
-            "grabbers": []
-        }
-        save_json("candy_data.json", candy_data)
+def save_hu(data):
+    with open(HU_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
 
-        text = f"🍭 Hũ kẹo mới vừa được thả!\n🎁 Nhấn để giựt kẹo [{0}/{num_portions}]"
-        await msg.answer(text, reply_markup=grab_candy_keyboard(candy_id))
+async def throw_candy(message: types.Message):
+    if message.from_user.id not in ADMIN_IDS:
+        return await message.answer("❌ Chỉ admin được thả kẹo.")
 
-    @dp.callback_query_handler(lambda c: c.data.startswith("grab_"))
-    async def grab_candy(callback: types.CallbackQuery):
-        user_id = str(callback.from_user.id)
-        users = load_json("users_data.json")
-        candy_data = load_json("candy_data.json")
-        cid = callback.data.split("_")[1]
+    hu_data = {
+        "amount": random.randint(MIN_GRAB, MAX_GRAB),
+        "grabbed": False,
+        "user_id": None
+    }
+    save_hu(hu_data)
+    kb = grab_candy_keyboard()
+    await message.answer(f"🍭 Hũ kẹo {hu_data['amount']:,} đã được thả!\nAi sẽ là người giật được?", reply_markup=kb)
 
-        if cid not in candy_data:
-            return await callback.answer("❌ Hũ kẹo không tồn tại.", show_alert=True)
+async def grab_candy(callback: types.CallbackQuery):
+    users = load_users()
+    uid = str(callback.from_user.id)
 
-        candy = candy_data[cid]
-        if user_id in candy["grabbers"]:
-            return await callback.answer("🍬 Bạn đã giựt hũ kẹo này rồi!", show_alert=True)
+    if uid not in users:
+        users[uid] = {"balance": 0, "grab_count": 5, "bank": "", "recharged_this_week": 0}
 
-        user = users.get(user_id)
-        if not user:
-            users[user_id] = {
-                "balance": 0,
-                "daily_grabs": 0,
-                "bank": "",
-                "ref": None,
-                "recharged": 0,
-                "can_grab": False
-            }
-            user = users[user_id]
+    if users[uid]["grab_count"] <= 0:
+        return await callback.answer("❌ Hết lượt giật!", show_alert=True)
 
-        today = datetime.now().date()
-        last_grab = user.get("last_grab")
-        if last_grab != str(today):
-            user["daily_grabs"] = 0
-            user["last_grab"] = str(today)
+    if users[uid]["recharged_this_week"] < 5000 and callback.from_user.id not in ADMIN_IDS:
+        return await callback.answer("⚠️ Bạn cần nạp ít nhất 5,000 điểm mỗi tuần để giật kẹo!", show_alert=True)
 
-        if not user.get("can_grab", False):
-            return await callback.answer("❌ Bạn cần nạp ít nhất 5000 điểm trong tuần để giựt kẹo.", show_alert=True)
+    hu = get_hu()
+    if not hu or hu["grabbed"]:
+        return await callback.answer("❌ Hũ kẹo không còn!", show_alert=True)
 
-        if user["daily_grabs"] >= 5:
-            return await callback.answer("⛔ Bạn đã hết lượt giựt hôm nay.", show_alert=True)
+    hu["grabbed"] = True
+    hu["user_id"] = uid
+    save_hu(hu)
 
-        if candy["grabbed"] >= candy["max_grabs"]:
-            return await callback.answer("❌ Hũ kẹo đã bị giựt hết.", show_alert=True)
+    users[uid]["balance"] += hu["amount"]
+    users[uid]["grab_count"] -= 1
+    save_users(users)
 
-        reward = round(candy["value"] / candy["max_grabs"])
-        user["balance"] += reward
-        user["daily_grabs"] += 1
-        candy["grabbed"] += 1
-        candy["grabbers"].append(user_id)
-
-        save_json("users_data.json", users)
-        save_json("candy_data.json", candy_data)
-
-        new_text = f"🍭 Hũ kẹo mới vừa được thả!\n🎁 Nhấn để giựt kẹo [{candy['grabbed']}/{candy['max_grabs']}]"
-        try:
-            await callback.message.edit_text(new_text, reply_markup=grab_candy_keyboard(cid))
-        except:
-            pass
-
-        await callback.answer(f"🎉 Bạn đã giựt được {reward} điểm!", show_alert=True)
+    await callback.message.edit_text(f"🎉 <b>{callback.from_user.full_name}</b> đã giật được {hu['amount']:,} điểm!")
+    await callback.answer()
