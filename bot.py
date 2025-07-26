@@ -97,23 +97,22 @@ async def confirm_deposit(message: types.Message, state: FSMContext):
         await state.finish()
         return await message.answer("❌ Vui lòng nhập số hợp lệ (> 1000đ).")
 
-    data = load_users()
-user = get_or_create_user(message.from_user.id, data)
-
-user["deposits"].append({
-    "amount": amount,
-    "timestamp": int(time.time()),
-    "status": "pending",
-    "code": deposit_code
-})
+        user["deposits"].append({
+        "amount": amount,
+        "timestamp": int(time.time()),
+        "status": "pending",
+        "code": deposit_code
+    })
 
     save_users(data)
 
     await message.answer(
-        f"✅ Yêu cầu nạp {amount:,}đ đã được ghi nhận.\n\n"
-        f"📌 Vui lòng chuyển khoản tới:\n🏦 {BOT_BANK_NAME} - {BOT_BANK_NUMBER}\n"
+        f"✅ Yêu cầu nạp {amount:,}đ đã được ghi nhận.\n"
+        f"📌 Vui lòng chuyển khoản tới:\n"
+        f"🏦 MB Bank - 1234567890\n"
         f"📄 Nội dung: NAP {message.from_user.id}"
     )
+
     await state.finish()
 
 # ========== Tài Khoản ==========
