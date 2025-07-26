@@ -15,14 +15,14 @@ class Form(StatesGroup):
     investing = State()
     withdrawing = State()
 
-# --- START ---
+# --- /start ---
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
     is_admin = str(message.from_user.id) in ADMIN_IDS
     get_or_create_user(message.from_user.id)
     await message.answer("Chào mừng đến bot đầu tư!", reply_markup=main_keyboard(is_admin))
 
-# --- ĐẦU TƯ ---
+# --- 💼 ĐẦU TƯ ---
 @dp.message_handler(text="💼 Đầu Tư")
 async def invest_menu(message: types.Message):
     text = "💼 Các gói đầu tư:\n"
@@ -49,10 +49,11 @@ async def handle_invest(message: types.Message, state: FSMContext):
         await message.answer("❌ Không đủ số dư hoặc số tiền không hợp lệ.")
     await state.finish()
 
-# --- RÚT LÃI ---
+# --- 💸 RÚT LÃI ---
 @dp.message_handler(text="💸 Rút Lãi")
 async def handle_withdraw(message: types.Message):
-    available = calculate_profit(message.from_user.id) - sum(w["amount"] for w in get_or_create_user(message.from_user.id)["withdrawals"])
+    user = get_or_create_user(message.from_user.id)
+    available = calculate_profit(message.from_user.id) - sum(w["amount"] for w in user["withdrawals"])
     await message.answer(f"💰 Lãi có thể rút: {available:,}đ\nNhập số tiền muốn rút:")
     await Form.withdrawing.set()
 
@@ -69,7 +70,7 @@ async def confirm_withdraw(message: types.Message, state: FSMContext):
         await message.answer("❌ Không đủ lãi hoặc vượt giới hạn min/max.")
     await state.finish()
 
-# --- TÀI KHOẢN ---
+# --- 👤 TÀI KHOẢN ---
 @dp.message_handler(text="👤 Tài Khoản")
 async def account_info(message: types.Message):
     user = get_or_create_user(message.from_user.id)
@@ -82,7 +83,7 @@ async def account_info(message: types.Message):
     )
     await message.answer(text)
 
-# --- CẬP NHẬT STK ---
+# --- /bank cập nhật STK ---
 @dp.message_handler(commands=["bank"])
 async def set_bank(message: types.Message):
     try:
@@ -95,7 +96,7 @@ async def set_bank(message: types.Message):
     except:
         await message.answer("❌ Sai cú pháp. Dùng: /bank TênNgânHàng STK")
 
-# --- ADMIN ---
+# --- ⚙️ ADMIN PANEL ---
 @dp.message_handler(text="⚙️ Admin Panel")
 async def admin_panel(message: types.Message):
     if str(message.from_user.id) in ADMIN_IDS:
@@ -123,12 +124,12 @@ async def view_withdrawals(message: types.Message):
             text += f"👤 {uid}: -{w['amount']:,}đ lúc {w['time']}\n"
     await message.answer(text or "Chưa có rút.")
 
-# --- QUAY LẠI ---
+# --- 🔙 Quay Lại ---
 @dp.message_handler(text="🔙 Quay Lại")
 async def back(message: types.Message):
     is_admin = str(message.from_user.id) in ADMIN_IDS
     await message.answer("⬅️ Quay lại menu chính", reply_markup=main_keyboard(is_admin))
 
-# --- CHẠY BOT ---
+# --- RUN BOT ---
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
