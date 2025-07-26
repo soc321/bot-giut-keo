@@ -10,7 +10,7 @@ from states import *
 import asyncio
 
 bot = Bot(token=TOKEN)
-dp = Dispatcher(bot, storage=MemoryStorage())
+dp = Dispatcher(bot, storage=MemoryStorage())  # ⚠️ FSM cần có storage
 
 # ========== Start ==========
 @dp.message_handler(commands=["start"])
@@ -33,7 +33,6 @@ async def invest_menu(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=InvestmentStates.waiting_for_package_choice)
 async def invest_choose(message: types.Message, state: FSMContext):
-    data = load_users()
     try:
         choice = int(message.text.strip()) - 1
         if choice < 0 or choice >= len(INVESTMENTS):
@@ -43,7 +42,9 @@ async def invest_choose(message: types.Message, state: FSMContext):
         return await message.answer("❌ Vui lòng nhập số thứ tự hợp lệ.")
 
     package = INVESTMENTS[choice]
+    data = load_users()
     user = get_or_create_user(message.from_user.id, data)
+
     if user["balance"] < package["amount"]:
         await state.finish()
         return await message.answer("❌ Bạn không đủ số dư để đầu tư gói này.")
@@ -67,16 +68,17 @@ async def ask_withdraw(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=WithdrawStates.waiting_for_amount)
 async def process_withdraw(message: types.Message, state: FSMContext):
-    await state.finish()
     try:
         amount = int(message.text.strip())
     except:
+        await state.finish()
         return await message.answer("❌ Vui lòng nhập số tiền hợp lệ.")
 
     if withdraw(message.from_user.id, amount):
         await message.answer(f"✅ Đã gửi yêu cầu rút {amount:,}đ. Admin sẽ xử lý sớm.")
     else:
         await message.answer("❌ Số tiền không hợp lệ hoặc vượt quá lãi khả dụng.")
+    await state.finish()
 
 # ========== Nạp Tiền ==========
 @dp.message_handler(Text("💳 Nạp Tiền"))
@@ -87,22 +89,17 @@ async def ask_deposit(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=DepositStates.waiting_for_amount)
 async def confirm_deposit(message: types.Message, state: FSMContext):
-    text = message.text.strip()
-    if not text.isdigit():
+    try:
+        amount = int(message.text.strip())
+        if amount < 1000:
+            raise ValueError
+    except:
         await state.finish()
         return await message.answer("❌ Vui lòng nhập số hợp lệ (> 1000đ).")
 
-    amount = int(text)
-    if amount < 1000:
-        await state.finish()
-        return await message.answer("❌ Vui lòng nhập số hợp lệ (> 1000đ).")
-
-    # Lưu data
     data = load_users()
-    uid = str(message.from_user.id)
-    if uid not in data:
-        data[uid] = get_or_create_user(uid, data)
-    data[uid]["deposits"].append({
+    user = get_or_create_user(message.from_user.id, data)
+    user["deposits"].append({
         "amount": amount,
         "time": current_time()
     })
@@ -111,7 +108,7 @@ async def confirm_deposit(message: types.Message, state: FSMContext):
     await message.answer(
         f"✅ Yêu cầu nạp {amount:,}đ đã được ghi nhận.\n\n"
         f"📌 Vui lòng chuyển khoản tới:\n🏦 {BOT_BANK_NAME} - {BOT_BANK_NUMBER}\n"
-        f"📄 Nội dung: NAP {uid}"
+        f"📄 Nội dung: NAP {message.from_user.id}"
     )
     await state.finish()
 
@@ -205,7 +202,7 @@ async def auto_profit_loop():
     while True:
         data = load_users()
         for uid in data:
-            get_or_create_user(uid)
+            get_or_create_user(uid, data)
         save_users(data)
         await asyncio.sleep(86400)
 
