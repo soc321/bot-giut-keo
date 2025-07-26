@@ -27,10 +27,20 @@ admin_menu.add(KeyboardButton("📥 Duyệt Nạp"), KeyboardButton("📊 Thốn
 admin_menu.add(KeyboardButton("🔙 Quay Lại"))
 
 # ====== Start ======
-@dp.message_handler(commands=["start"])
-async def start(message: types.Message):
+@dp.message_handler(commands=['start'])
+async def cmd_start(message: types.Message):
+    user_id = str(message.from_user.id)
+    data = load_users()
+    if user_id not in data:
+        data[user_id] = {
+            "balance": 0,
+            "deposits": [],
+            "investments": [],
+            "bank": "",
+            "profit": 0
+        }
+        save_users(data)
     await message.answer("🎉 Chào mừng đến với bot đầu tư!", reply_markup=main_menu)
-
 # ====== Tài Khoản ======
 @dp.message_handler(Text("👤 Tài Khoản"))
 async def account_info(message: types.Message, state: FSMContext):
