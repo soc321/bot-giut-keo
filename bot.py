@@ -66,7 +66,9 @@ async def process_withdraw(message: types.Message, state: FSMContext):
     try:
         amount = int(message.text.strip())
     except:
+        await state.finish()
         return await message.answer("❌ Vui lòng nhập số tiền hợp lệ.")
+
     if withdraw(message.from_user.id, amount):
         await message.answer(f"✅ Đã gửi yêu cầu rút {amount:,}đ. Admin sẽ xử lý sớm.")
     else:
