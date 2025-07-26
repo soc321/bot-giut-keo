@@ -1,42 +1,73 @@
-import json, time
+import json, os
+from datetime import datetime
 from config import MIN_WITHDRAW, MAX_WITHDRAW
 
+DATA_FILE = "users.json"
+
 def load_users():
-    try:
-        with open("users.json", "r") as f:
-            return json.load(f)
-    except:
+    if not os.path.exists(DATA_FILE):
         return {}
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 def save_users(data):
-    with open("users.json", "w") as f:
-        json.dump(data, f, indent=2)
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
-def get_or_create_user(user_id):
-    data = load_users()
+def get_or_create_user(user_id, data=None):
     uid = str(user_id)
+    if data is None:
+        data = load_users()
     if uid not in data:
-        data[uid] = {"deposits": [], "withdraws": []}
+        data[uid] = {
+            "balance": 0,
+            "investments": [],
+            "withdrawals": [],
+            "deposits": [],
+            "bank": "-",
+            "bank_number": "-",
+        }
         save_users(data)
     return data[uid]
 
+def invest(user_id, package):
+    data = load_users()
+    user = get_or_create_user(user_id, data)
+    user["investments"].append({
+        "amount": package["amount"],
+        "daily": package["daily"],
+        "days": package["days"],
+        "start": current_time()
+    })
+    save_users(data)
+
 def calculate_profit(user_id):
     user = get_or_create_user(user_id)
-    now = int(time.time())
-    total_profit = 0
-    for d in user["deposits"]:
-        if d["status"] != "approved":
-            continue
-        days = (now - d["timestamp"]) // 86400
-        rate = d.get("rate", 0)
-        total_profit += d["amount"] * rate * days
-    return round(total_profit)
+    now = datetime.now()
+    total = 0
+    for inv in user["investments"]:
+        start = datetime.strptime(inv["start"], "%Y-%m-%d %H:%M:%S")
+        elapsed = (now - start).days
+        earn_days = min(inv["days"], elapsed)
+        total += earn_days * inv["daily"]
+    return total
 
-def get_pending_deposits():
+def withdraw(user_id, amount):
     data = load_users()
-    result = []
-    for uid, u in data.items():
-        for d in u.get("deposits", []):
-            if d["status"] == "pending":
-                result.append((uid, d))
-    return result
+    user = get_or_create_user(user_id, data)
+    profit = calculate_profit(user_id)
+    withdrawn = sum(w["amount"] for w in user["withdrawals"])
+    available = profit - withdrawn
+
+    if amount < MIN_WITHDRAW or amount > MAX_WITHDRAW or amount > available:
+        return False
+
+    user["withdrawals"].append({
+        "amount": amount,
+        "time": current_time()
+    })
+    save_users(data)
+    return True
+
+def current_time():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
