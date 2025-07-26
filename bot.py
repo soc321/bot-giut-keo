@@ -48,6 +48,7 @@ async def invest_choose(message: types.Message, state: FSMContext):
 
     user["balance"] -= package["amount"]
     invest(message.from_user.id, package)
+    save_users(load_users())
     await state.finish()
     await message.answer(f"✅ Đầu tư {package['name']} thành công!")
 
@@ -65,15 +66,35 @@ async def ask_withdraw(message: types.Message):
 async def process_withdraw(message: types.Message, state: FSMContext):
     try:
         amount = int(message.text.strip())
+        if amount < 1000:
+            raise ValueError
     except:
         await state.finish()
-        return await message.answer("❌ Vui lòng nhập số tiền hợp lệ.")
+        return await message.answer("❌ Vui lòng nhập số tiền hợp lệ (> 1,000đ).")
 
-    if withdraw(message.from_user.id, amount):
-        await message.answer(f"✅ Đã gửi yêu cầu rút {amount:,}đ. Admin sẽ xử lý sớm.")
-    else:
-        await message.answer("❌ Số tiền không hợp lệ hoặc vượt quá lãi khả dụng.")
+    user = get_or_create_user(message.from_user.id)
+    profit = calculate_profit(message.from_user.id)
+    withdrawn = sum(w["amount"] for w in user["withdrawals"])
+    available = profit - withdrawn
+
+    if amount > available:
+        await state.finish()
+        return await message.answer("❌ Số tiền vượt quá lãi khả dụng.")
+
+    user["withdrawals"].append({
+        "amount": amount,
+        "time": current_time()
+    })
+    save_users(load_users())
     await state.finish()
+    await message.answer(f"✅ Đã gửi yêu cầu rút {amount:,}đ. Admin sẽ xử lý sớm.")
+
+    # Gửi thông báo cho admin
+    for admin_id in ADMIN_IDS:
+        await bot.send_message(
+            int(admin_id),
+            f"📤 Yêu cầu rút tiền:\n👤 {message.from_user.id} yêu cầu rút {amount:,}đ"
+        )
 
 # ========== Nạp Tiền ==========
 @dp.message_handler(Text("💳 Nạp Tiền"))
@@ -88,17 +109,14 @@ async def confirm_deposit(message: types.Message, state: FSMContext):
         if amount < 1000:
             raise ValueError
     except:
-        return await message.answer("❌ Vui lòng nhập số hợp lệ (> 1000đ).")
+        return await message.answer("❌ Vui lòng nhập số hợp lệ (> 1,000đ).")
 
-    data = load_users()
-    uid = str(message.from_user.id)
-    user = get_or_create_user(uid, data)
-    user["deposits"].append({
+    user = get_or_create_user(message.from_user.id)
+    user["pending_deposit"] = {
         "amount": amount,
         "time": current_time()
-    })
-    save_users(data)
-
+    }
+    save_users(load_users())
     await message.answer(
         f"✅ Yêu cầu nạp {amount:,}đ đã được ghi nhận.\n\n"
         f"📌 Vui lòng chuyển khoản tới:\n🏦 {BOT_BANK_NAME} - {BOT_BANK_NUMBER}\n"
@@ -160,9 +178,10 @@ async def view_deposits(message: types.Message):
     data = load_users()
     text = "📥 Danh sách nạp:\n"
     for uid, u in data.items():
-        for d in u.get("deposits", []):
+        if "pending_deposit" in u:
+            d = u["pending_deposit"]
             text += f"👤 {uid}: +{d['amount']:,}đ lúc {d['time']}\n"
-    await message.answer(text or "Chưa có nạp.")
+    await message.answer(text or "Chưa có yêu cầu nạp.")
 
 @dp.message_handler(Text("📊 Thống Kê"))
 async def stats(message: types.Message):
@@ -188,9 +207,9 @@ async def auto_profit_loop():
     while True:
         data = load_users()
         for uid in data:
-            get_or_create_user(uid)  # bảo đảm cấu trúc
+            get_or_create_user(uid)
         save_users(data)
-        await asyncio.sleep(86400)  # mỗi 24 giờ
+        await asyncio.sleep(86400)
 
 # ========== Run Bot ==========
 if __name__ == "__main__":
