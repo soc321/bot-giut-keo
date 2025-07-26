@@ -89,12 +89,16 @@ async def confirm_deposit(message: types.Message, state: FSMContext):
             raise ValueError
     except:
         return await message.answer("❌ Vui lòng nhập số hợp lệ (> 1000đ).")
-    user = get_or_create_user(message.from_user.id)
+
+    data = load_users()
+    uid = str(message.from_user.id)
+    user = get_or_create_user(uid, data)
     user["deposits"].append({
         "amount": amount,
         "time": current_time()
     })
-    save_users(load_users())
+    save_users(data)
+
     await message.answer(
         f"✅ Yêu cầu nạp {amount:,}đ đã được ghi nhận.\n\n"
         f"📌 Vui lòng chuyển khoản tới:\n🏦 {BOT_BANK_NAME} - {BOT_BANK_NUMBER}\n"
