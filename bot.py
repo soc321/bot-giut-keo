@@ -142,5 +142,23 @@ async def back(message: types.Message):
     is_admin = str(message.from_user.id) in ADMIN_IDS
     await message.answer("⬅️ Quay lại menu chính", reply_markup=main_keyboard(is_admin))
 
+@dp.message_handler(commands=["add"])
+async def admin_add_balance(message: types.Message):
+    if str(message.from_user.id) not in ADMIN_IDS:
+        return
+
+    try:
+        _, uid, amount = message.text.split()
+        uid = str(uid)
+        amount = int(amount)
+        data = load_users()
+        if uid not in data:
+            return await message.answer("❌ ID không tồn tại.")
+        data[uid]["balance"] += amount
+        save_users(data)
+        await message.answer(f"✅ Đã cộng {amount:,}đ cho ID {uid}")
+    except:
+        await message.answer("❌ Sai cú pháp. Dùng: /add <id> <số tiền>")
+
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
