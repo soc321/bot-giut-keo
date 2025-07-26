@@ -1,20 +1,16 @@
-# Base image
 FROM python:3.10-slim
 
-# Set work directory
+# Tạo thư mục làm việc trong container
 WORKDIR /app
 
-# Copy requirements
+# Copy requirements trước để tận dụng cache Docker tốt hơn
 COPY requirements.txt .
 
-# Install dependencies
+# Cài thư viện cần thiết
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all source code
+# Copy toàn bộ mã nguồn vào thư mục /app
 COPY . .
 
-# Set environment variables (optional)
-ENV PYTHONUNBUFFERED=1
-
-# Start the bot
+# Chạy bot
 CMD ["python", "bot.py"]
