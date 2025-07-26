@@ -75,15 +75,24 @@ async def deposit_start(message: types.Message):
 async def deposit_input(message: types.Message, state: FSMContext):
     try:
         amount = int(message.text)
-        if amount >= 1000:
-            user = get_or_create_user(message.from_user.id)
-            user["deposits"].append({"amount": amount, "time": current_time()})
-            save_users(load_users())
-            await message.answer(f"✅ Yêu cầu nạp {amount:,}đ đã được ghi nhận. Admin sẽ duyệt và cộng điểm.")
-        else:
-            await message.answer("❌ Vui lòng nhập số tiền hợp lệ (> 1000).")
+        if amount < 1000:
+            raise ValueError
     except:
-        await message.answer("❌ Vui lòng nhập số tiền hợp lệ.")
+        await message.answer("❌ Vui lòng nhập số tiền hợp lệ (> 1000đ).")
+        return
+
+    user = get_or_create_user(message.from_user.id)
+    user.setdefault("deposits", []).append({
+        "amount": amount,
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    })
+    save_users(load_users())
+
+    await message.answer(
+        f"✅ Yêu cầu nạp {amount:,}đ đã được ghi nhận.\n\n"
+        f"💳 Vui lòng chuyển khoản đến STK: *123456789 - Ngân hàng XYZ*\n"
+        f"📌 Nội dung: `NAP {message.from_user.id}`"
+    )
     await state.finish()
 
 @dp.message_handler(Text("👤 Tài Khoản"))
