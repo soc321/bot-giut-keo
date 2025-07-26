@@ -1,23 +1,30 @@
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
+from threading import Lock
 from config import MIN_WITHDRAW, MAX_WITHDRAW
 
 DATA_FILE = "users_data.json"
+_lock = Lock()
 
 def load_users():
-    if not os.path.exists(DATA_FILE):
-        return {}
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    with _lock:
+        if not os.path.exists(DATA_FILE):
+            return {}
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            return {}
 
 def save_users(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    with _lock:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
 
 def get_or_create_user(user_id):
-    data = load_users()
     uid = str(user_id)
+    data = load_users()
     if uid not in data:
         data[uid] = {
             "balance": 0,
@@ -29,20 +36,20 @@ def get_or_create_user(user_id):
             "last_profit_check": current_time()
         }
         save_users(data)
-    return data[uid]
+    return data, data[uid]
 
 def invest(user_id, package):
-    user = get_or_create_user(user_id)
+    data, user = get_or_create_user(user_id)
     user["investments"].append({
         "amount": package["amount"],
         "daily": package["daily"],
         "days": package["days"],
         "start": current_time()
     })
-    save_users(load_users())
+    save_users(data)
 
 def calculate_profit(user_id):
-    user = get_or_create_user(user_id)
+    _, user = get_or_create_user(user_id)
     now = datetime.now()
     total = 0
     for inv in user["investments"]:
@@ -53,7 +60,7 @@ def calculate_profit(user_id):
     return total
 
 def withdraw(user_id, amount):
-    user = get_or_create_user(user_id)
+    data, user = get_or_create_user(user_id)
     profit = calculate_profit(user_id)
     withdrawn = sum(w["amount"] for w in user["withdrawals"])
     available = profit - withdrawn
@@ -63,7 +70,7 @@ def withdraw(user_id, amount):
         "amount": amount,
         "time": current_time()
     })
-    save_users(load_users())
+    save_users(data)
     return True
 
 def current_time():
