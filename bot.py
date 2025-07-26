@@ -100,7 +100,7 @@ async def confirm_deposit(message: types.Message, state: FSMContext):
         "amount": amount,
         "time": current_time()
     })
-    save_users(data)  # ✅ Ghi lại đúng dữ liệu đã chỉnh
+    save_users(data)
 
     await message.answer(
         f"✅ Yêu cầu nạp {amount:,}đ đã được ghi nhận.\n\n"
