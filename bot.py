@@ -1,131 +1,173 @@
-import time
-from aiogram import Bot, Dispatcher, types
-from aiogram.types import Message
-from aiogram.filters import CommandStart, Command
-from aiogram.fsm.context import FSMContext
-from aiogram import F
-from aiogram.enums.parse_mode import ParseMode
-
-from config import TOKEN, ADMIN_IDS, MIN_WITHDRAW, MAX_WITHDRAW, DEPOSIT_PACKAGES
-from states import DepositState, WithdrawState
-from utils import *
-from keyboards import main_menu, back_menu
-
 import asyncio
+from aiogram import Bot, Dispatcher, types
+from aiogram.enums import ParseMode
+from aiogram.types import Message
+from aiogram.filters import CommandStart, Text, Command
+from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
+
+from config import TOKEN, ADMIN_IDS, INVESTMENTS, BOT_BANK_NAME, BOT_BANK_NUMBER
+from keyboards import main_keyboard, admin_panel_kb
+from states import InvestmentStates, WithdrawStates, DepositStates
+from utils import *
 
 bot = Bot(token=TOKEN, parse_mode=ParseMode.HTML)
 dp = Dispatcher(storage=MemoryStorage())
 
+# ========== START ==========
 @dp.message(CommandStart())
-async def start(msg: Message):
-    get_or_create_user(msg.from_user.id)
-    await msg.answer("🎉 Chào mừng đến với bot đầu tư!", reply_markup=main_menu)
+async def start(message: Message, state: FSMContext):
+    await state.clear()
+    is_admin = str(message.from_user.id) in ADMIN_IDS
+    get_or_create_user(message.from_user.id)
+    await message.answer("🎉 Chào mừng đến với bot đầu tư!", reply_markup=main_keyboard(is_admin))
 
-@dp.message(F.text == "📦 Đầu Tư")
-async def deposit(msg: Message, state: FSMContext):
-    await msg.answer("💵 Nhập số tiền muốn đầu tư (≥ 1000đ):", reply_markup=back_menu)
-    await state.set_state(DepositState.amount)
+# ========== ĐẦU TƯ ==========
+@dp.message(Text("💼 Đầu Tư"))
+async def show_investment(message: Message, state: FSMContext):
+    await state.clear()
+    text = "📦 Các gói đầu tư:\n"
+    for i, g in enumerate(INVESTMENTS, 1):
+        text += f"{i}. {g['name']}: {g['amount']:,}đ - {g['daily']:,}đ/ngày trong {g['days']} ngày\n"
+    text += "\n👉 Nhập số thứ tự gói muốn đầu tư:"
+    await message.answer(text)
+    await state.set_state(InvestmentStates.waiting_for_package_choice)
 
-@dp.message(DepositState.amount)
-async def process_deposit(msg: Message, state: FSMContext):
+@dp.message(InvestmentStates.waiting_for_package_choice)
+async def process_package(message: Message, state: FSMContext):
     try:
-        amount = int(msg.text)
+        idx = int(message.text.strip()) - 1
+        if idx < 0 or idx >= len(INVESTMENTS):
+            raise ValueError
+    except:
+        await message.answer("❌ Vui lòng nhập số thứ tự hợp lệ.")
+        return
+    data = load_users()
+    user = get_or_create_user(message.from_user.id, data)
+    package = INVESTMENTS[idx]
+    if user["balance"] < package["amount"]:
+        await message.answer("❌ Bạn không đủ số dư để đầu tư gói này.")
+    else:
+        user["balance"] -= package["amount"]
+        save_users(data)
+        invest(message.from_user.id, package)
+        await message.answer(f"✅ Bạn đã đầu tư vào {package['name']}!")
+    await state.clear()
+
+# ========== RÚT LÃI ==========
+@dp.message(Text("💸 Rút Lãi"))
+async def ask_withdraw(message: Message, state: FSMContext):
+    await state.clear()
+    user = get_or_create_user(message.from_user.id)
+    profit = calculate_profit(message.from_user.id)
+    withdrawn = sum(w["amount"] for w in user["withdrawals"])
+    available = profit - withdrawn
+    await message.answer(f"💰 Lãi khả dụng: {available:,}đ\n👉 Nhập số tiền muốn rút:")
+    await state.set_state(WithdrawStates.waiting_for_amount)
+
+@dp.message(WithdrawStates.waiting_for_amount)
+async def process_withdraw(message: Message, state: FSMContext):
+    try:
+        amount = int(message.text.strip())
+    except:
+        await message.answer("❌ Nhập số tiền hợp lệ.")
+        return
+    if withdraw(message.from_user.id, amount):
+        await message.answer(f"✅ Yêu cầu rút {amount:,}đ đã được ghi nhận. Admin sẽ duyệt.")
+    else:
+        await message.answer("❌ Số tiền không hợp lệ hoặc vượt quá lãi khả dụng.")
+    await state.clear()
+
+# ========== NẠP TIỀN ==========
+@dp.message(Text("💳 Nạp Tiền"))
+async def ask_deposit(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("💳 Nhập số tiền bạn muốn nạp:")
+    await state.set_state(DepositStates.waiting_for_amount)
+
+@dp.message(DepositStates.waiting_for_amount)
+async def confirm_deposit(message: Message, state: FSMContext):
+    try:
+        amount = int(message.text.strip())
         if amount < 1000:
             raise ValueError
     except:
-        return await msg.answer("❌ Vui lòng nhập số hợp lệ (≥ 1000đ).")
+        await message.answer("❌ Vui lòng nhập số hợp lệ (> 1000đ).")
+        return
 
     data = load_users()
-    user = get_or_create_user(msg.from_user.id)
-    deposit_code = f"{msg.from_user.id}_{int(time.time())}"
+    user = get_or_create_user(message.from_user.id, data)
     user["deposits"].append({
         "amount": amount,
-        "timestamp": int(time.time()),
-        "status": "pending",
-        "code": deposit_code
+        "time": current_time()
     })
     save_users(data)
-
-    await msg.answer(
-        f"✅ Yêu cầu nạp {amount:,}đ\n📌 Vui lòng chuyển khoản và chờ admin duyệt.\n🧾 Nội dung: NAP {deposit_code}"
+    await message.answer(
+        f"✅ Đã ghi nhận yêu cầu nạp {amount:,}đ\n\n"
+        f"💳 Chuyển khoản tới:\n🏦 {BOT_BANK_NAME} - {BOT_BANK_NUMBER}\n"
+        f"📄 Nội dung: NAP {message.from_user.id}"
     )
     await state.clear()
 
-@dp.message(F.text == "📥 Duyệt Nạp")
-async def approve_panel(msg: Message):
-    if str(msg.from_user.id) not in ADMIN_IDS:
-        return await msg.answer("Bạn không có quyền.")
-    
-    pending = get_pending_deposits()
-    if not pending:
-        return await msg.answer("📭 Không có yêu cầu nạp nào.")
-    
-    for uid, d in pending:
-        await msg.answer(
-            f"<b>ID:</b> {uid}\n💰 Số tiền: {d['amount']:,}đ\n⏰ Thời gian: {time.strftime('%H:%M:%d/%m', time.localtime(d['timestamp']))}\n✅ Duyệt bằng:\n/duyet_{uid}_{d['code']}"
-        )
+# ========== TÀI KHOẢN ==========
+@dp.message(Text("👤 Tài Khoản"))
+async def account(message: Message, state: FSMContext):
+    await state.clear()
+    user = get_or_create_user(message.from_user.id)
+    profit = calculate_profit(message.from_user.id)
+    withdrawn = sum(w["amount"] for w in user["withdrawals"])
+    available = profit - withdrawn
+    await message.answer(
+        f"👤 ID: {message.from_user.id}\n"
+        f"💰 Số dư: {user['balance']:,}đ\n"
+        f"📈 Lãi khả dụng: {available:,}đ\n"
+        f"🏦 STK: {user['bank']} - {user['bank_number']}"
+    )
 
-@dp.message(Command("duyet"))
-async def approve_command(msg: Message):
-    try:
-        _, uid, code = msg.text.split("_", 2)
-        data = load_users()
-        user = data.get(uid)
-        if not user:
-            raise Exception
+# ========== ADMIN ==========
+@dp.message(Text("⚙️ Admin Panel"))
+async def admin_panel(message: Message, state: FSMContext):
+    await state.clear()
+    if str(message.from_user.id) in ADMIN_IDS:
+        await message.answer("🔧 Admin Panel:", reply_markup=admin_panel_kb)
 
-        for d in user["deposits"]:
-            if d["code"] == code and d["status"] == "pending":
-                d["status"] = "approved"
-                d["rate"] = 0.01  # Gắn rate tạm
-                save_users(data)
-                return await msg.answer("✅ Duyệt thành công.")
-        raise Exception
-    except:
-        await msg.answer("❌ Sai cú pháp hoặc lỗi dữ liệu.")
-
-@dp.message(F.text == "💸 Rút Lãi")
-async def withdraw_start(msg: Message, state: FSMContext):
-    await msg.answer("💸 Nhập số tiền muốn rút:", reply_markup=back_menu)
-    await state.set_state(WithdrawState.amount)
-
-@dp.message(WithdrawState.amount)
-async def withdraw_process(msg: Message, state: FSMContext):
-    try:
-        amount = int(msg.text)
-        if amount < MIN_WITHDRAW or amount > MAX_WITHDRAW:
-            raise ValueError
-    except:
-        return await msg.answer(f"❌ Vui lòng nhập số hợp lệ (> {MIN_WITHDRAW}đ).")
-
-    profit = calculate_profit(msg.from_user.id)
-    if amount > profit:
-        return await msg.answer("❌ Không đủ lãi để rút.")
-
+@dp.message(Text("📥 Duyệt Nạp"))
+async def view_deposits(message: Message, state: FSMContext):
+    await state.clear()
+    if str(message.from_user.id) not in ADMIN_IDS:
+        return
     data = load_users()
-    user = data[str(msg.from_user.id)]
-    user["withdraws"].append({
-        "amount": amount,
-        "timestamp": int(time.time())
-    })
-    save_users(data)
-    await msg.answer("✅ Yêu cầu rút đã ghi nhận. Vui lòng chờ duyệt.")
-    await state.clear()
+    text = "📥 Danh sách nạp:\n"
+    for uid, u in data.items():
+        for d in u["deposits"]:
+            text += f"👤 {uid}: {d['amount']:,}đ lúc {d['time']}\n"
+    await message.answer(text or "✅ Không có yêu cầu nạp nào.")
 
-@dp.message(F.text == "📊 Thống Kê")
-async def stats(msg: Message):
-    user = get_or_create_user(msg.from_user.id)
-    total_invest = sum(d["amount"] for d in user["deposits"] if d["status"] == "approved")
-    profit = calculate_profit(msg.from_user.id)
-    withdrawn = sum(w["amount"] for w in user["withdraws"])
-    balance = profit - withdrawn
-    await msg.answer(
-        f"💰 Tổng đầu tư: {total_invest:,}đ\n📈 Lãi: {profit:,}đ\n💸 Đã rút: {withdrawn:,}đ\n💼 Có thể rút: {balance:,}đ"
+@dp.message(Text("📊 Thống Kê"))
+async def stats(message: Message, state: FSMContext):
+    await state.clear()
+    if str(message.from_user.id) not in ADMIN_IDS:
+        return
+    data = load_users()
+    total_users = len(data)
+    total_balance = sum(u["balance"] for u in data.values())
+    total_profit = sum(calculate_profit(uid) for uid in data)
+    await message.answer(
+        f"📊 Tổng người dùng: {total_users}\n"
+        f"💰 Tổng số dư: {total_balance:,}đ\n"
+        f"📈 Tổng lãi toàn hệ thống: {total_profit:,}đ"
     )
 
-async def main():
-    await dp.start_polling(bot)
+@dp.message(Text("🔙 Quay Lại"))
+async def back(message: Message, state: FSMContext):
+    await state.clear()
+    is_admin = str(message.from_user.id) in ADMIN_IDS
+    await message.answer("⬅️ Quay lại menu chính", reply_markup=main_keyboard(is_admin))
 
+# ========== CHẠY BOT ==========
 if __name__ == "__main__":
-    asyncio.run(main())
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    import asyncio
+    from aiogram import executor
+    asyncio.run(dp.start_polling(bot))
