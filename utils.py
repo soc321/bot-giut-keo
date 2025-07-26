@@ -1,31 +1,23 @@
 import json
 import os
 from datetime import datetime, timedelta
-
-DATA_FILE = "users_data.json"
-INVESTMENTS = [
-    {"amount": 5000, "days": 7, "daily_profit": 2000, "name": "Gói Trải Nghiệm"},
-    {"amount": 20000, "days": 7, "daily_profit": 5000},
-    {"amount": 50000, "days": 15, "daily_profit": 5000},
-    {"amount": 100000, "days": 30, "daily_profit": 5000}
-]
+from config import USER_DATA_FILE, INVESTMENTS, MIN_WITHDRAW, MAX_WITHDRAW
 
 def load_users():
-    if not os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "w") as f:
-            json.dump({}, f)
-    with open(DATA_FILE, "r") as f:
+    if not os.path.exists(USER_DATA_FILE):
+        return {}
+    with open(USER_DATA_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
 def save_users(data):
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    with open(USER_DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
 def get_or_create_user(user_id):
+    user_id = str(user_id)
     data = load_users()
-    uid = str(user_id)
-    if uid not in data:
-        data[uid] = {
+    if user_id not in data:
+        data[user_id] = {
             "balance": 0,
             "investments": [],
             "withdrawals": [],
@@ -34,45 +26,50 @@ def get_or_create_user(user_id):
             "bank_number": ""
         }
         save_users(data)
-    return data[uid]
+    return data[user_id]
+
+def current_time():
+    return datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
 def invest(user_id, amount):
-    user = get_or_create_user(user_id)
-    now = datetime.now().isoformat()
+    user_id = str(user_id)
+    data = load_users()
+    user = data[user_id]
     for g in INVESTMENTS:
         if g["amount"] == amount:
-            user["investments"].append({
+            inv = {
                 "amount": amount,
-                "daily": g["daily_profit"],
-                "start": now,
-                "days": g["days"]
-            })
-            user["deposits"].append({"amount": amount, "time": now})
-            save_users(load_users())
+                "daily": g["daily"],
+                "days": g["days"],
+                "start": datetime.now().strftime("%Y-%m-%d")
+            }
+            user["investments"].append(inv)
+            save_users(data)
             return True
     return False
 
 def calculate_profit(user_id):
-    user = get_or_create_user(user_id)
+    user_id = str(user_id)
+    data = load_users()
+    user = data[user_id]
     total_profit = 0
-    today = datetime.now().date()
+    now = datetime.now()
     for inv in user["investments"]:
-        start = datetime.fromisoformat(inv["start"]).date()
-        end = start + timedelta(days=inv["days"])
-        if today > start:
-            passed_days = min((today - start).days, inv["days"])
-            earned = passed_days * inv["daily"]
-            total_profit += earned
+        start_date = datetime.strptime(inv["start"], "%Y-%m-%d")
+        elapsed_days = min((now - start_date).days + 1, inv["days"])
+        total_profit += elapsed_days * inv["daily"]
     return total_profit
 
 def withdraw(user_id, amount):
-    user = get_or_create_user(user_id)
-    available = calculate_profit(user_id) - sum(w['amount'] for w in user["withdrawals"])
-    if 7000 <= amount <= 500000 and amount <= available:
-        user["withdrawals"].append({
-            "amount": amount,
-            "time": datetime.now().isoformat()
-        })
-        save_users(load_users())
-        return True
-    return False
+    user_id = str(user_id)
+    data = load_users()
+    user = data[user_id]
+    profit_available = calculate_profit(user_id) - sum(w["amount"] for w in user["withdrawals"])
+    if amount < MIN_WITHDRAW or amount > MAX_WITHDRAW or amount > profit_available:
+        return False
+    user["withdrawals"].append({
+        "amount": amount,
+        "time": current_time()
+    })
+    save_users(data)
+    return True
