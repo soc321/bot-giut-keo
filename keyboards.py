@@ -1,14 +1,17 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
-from config import ADMIN_IDS
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
-def main_keyboard(user_id):
-    kb = ReplyKeyboardMarkup(resize_keyboard=True)
-    kb.row(KeyboardButton("👤 Tài Khoản"), KeyboardButton("🍬 Thả Kẹo" if user_id in ADMIN_IDS else ""))
-    if user_id in ADMIN_IDS:
-        kb.row(KeyboardButton("⚙️ Admin Cài Đặt"))
-    return kb
+def main_keyboard(is_admin=False):
+    kb = [
+        [KeyboardButton("💼 Đầu Tư"), KeyboardButton("💸 Rút Lãi")],
+        [KeyboardButton("👤 Tài Khoản")]
+    ]
+    if is_admin:
+        kb.append([KeyboardButton("⚙️ Admin Panel")])
+    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
-def grab_candy_keyboard():
-    ikb = InlineKeyboardMarkup()
-    ikb.add(InlineKeyboardButton("🎯 Giật Hũ Kẹo", callback_data="grab_candy"))
-    return ikb
+admin_panel_kb = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton("📥 Danh Sách Nạp"), KeyboardButton("📤 Danh Sách Rút")],
+        [KeyboardButton("🔙 Quay Lại")]
+    ], resize_keyboard=True
+)
