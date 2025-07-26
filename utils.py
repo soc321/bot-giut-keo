@@ -15,15 +15,17 @@ def save_users(data):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
-def get_or_create_user(data, user_id):
-    user_id = str(user_id)
+def get_or_create_user(user_id: str):
+    data = load_users()
     if user_id not in data:
         data[user_id] = {
             "balance": 0,
             "deposits": [],
-            "withdrawals": [],
-            "investments": []
+            "investments": [],
+            "bank": "",
+            "profit": 0
         }
+        save_users(data)
     return data[user_id]
 
 def calculate_profit(user_id):
