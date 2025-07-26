@@ -1,5 +1,2 @@
-ADMIN_IDS = [6730559072]  # Thay ID admin thật của bạn
-MIN_GRAB = 1000
-MAX_GRAB = 10000
-GRABS_PER_DAY = 5
-RECHARGE_REQUIRED = 5000
+TOKEN = "8121092898:AAG2FjMFjP1rjBWkaSSl_PpiMGee0StjuGg"
+ADMIN_IDS = ["6730559072"]  # Thay bằng Telegram user_id của admin
