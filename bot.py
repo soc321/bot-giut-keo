@@ -21,8 +21,9 @@ async def start(message: types.Message):
 async def invest_menu(message: types.Message):
     text = "📦 Các gói đầu tư:\n"
     for i, g in enumerate(INVESTMENTS, 1):
-        text += f"{i}. {g.get('name', f'Gói {g['amount']:,}đ')} - {g['amount']:,}đ - {g['days']} ngày - {g['daily']:,}đ/ngày\n"
-    text += "\n➡️ Nhập số thứ tự gói muốn đầu tư (1-4):"
+        name = g.get("name", f"Gói {g['amount']:,}đ")
+        text += f"{i}. {name}: {g['amount']:,}đ, lãi {g['daily']:,}đ/ngày trong {g['days']} ngày\n"
+    text += "\n➡️ Nhập số thứ tự gói muốn đầu tư:"
     await InvestmentStates.waiting_for_package_choice.set()
     await message.answer(text)
 
