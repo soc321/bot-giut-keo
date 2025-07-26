@@ -7,9 +7,10 @@ def main_keyboard(is_admin=False):
     ]
     if is_admin:
         kb.append([KeyboardButton("⚙️ Admin Panel")])
-    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+    return ReplyKeyboardMarkup(resize_keyboard=True).add(*[btn for row in kb for btn in row])
 
-admin_panel_kb = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[
-    [KeyboardButton("📥 Danh Sách Nạp"), KeyboardButton("📤 Danh Sách Rút")],
-    [KeyboardButton("🔙 Quay Lại")]
-])
+admin_panel_kb = ReplyKeyboardMarkup(resize_keyboard=True).add(
+    KeyboardButton("📥 Danh Sách Nạp"),
+    KeyboardButton("📤 Danh Sách Rút"),
+    KeyboardButton("🔙 Quay Lại")
+)
