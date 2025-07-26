@@ -107,7 +107,7 @@ user["deposits"].append({
     "code": deposit_code
 })
 
-save_users(data)
+    save_users(data)
 
     await message.answer(
         f"✅ Yêu cầu nạp {amount:,}đ đã được ghi nhận.\n\n"
