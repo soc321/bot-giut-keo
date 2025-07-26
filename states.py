@@ -1,10 +1,7 @@
-from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.fsm.state import StatesGroup, State
 
-class InvestmentStates(StatesGroup):
-    waiting_for_package_choice = State()
+class DepositState(StatesGroup):
+    amount = State()
 
-class WithdrawStates(StatesGroup):
-    waiting_for_amount = State()
-
-class DepositStates(StatesGroup):
-    waiting_for_amount = State()
+class WithdrawState(StatesGroup):
+    amount = State()
