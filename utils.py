@@ -25,7 +25,8 @@ def get_or_create_user(user_id):
             "withdrawals": [],
             "deposits": [],
             "bank": "-",
-            "bank_number": "-"
+            "bank_number": "-",
+            "last_profit_check": current_time()
         }
         save_users(data)
     return data[uid]
@@ -42,8 +43,8 @@ def invest(user_id, package):
 
 def calculate_profit(user_id):
     user = get_or_create_user(user_id)
-    total = 0
     now = datetime.now()
+    total = 0
     for inv in user["investments"]:
         start = datetime.strptime(inv["start"], "%Y-%m-%d %H:%M:%S")
         elapsed_days = (now - start).days
@@ -58,9 +59,15 @@ def withdraw(user_id, amount):
     available = profit - withdrawn
     if amount < MIN_WITHDRAW or amount > MAX_WITHDRAW or amount > available:
         return False
-    user["withdrawals"].append({"amount": amount, "time": current_time()})
+    user["withdrawals"].append({
+        "amount": amount,
+        "time": current_time()
+    })
     save_users(load_users())
     return True
 
 def current_time():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+def format_money(amount):
+    return "{:,}đ".format(amount)
