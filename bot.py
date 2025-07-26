@@ -34,14 +34,18 @@ async def invest_choose(message: types.Message, state: FSMContext):
     try:
         choice = int(message.text.strip()) - 1
         if choice < 0 or choice >= len(INVESTMENTS):
-            raise ValueError
+            await state.finish()
+            return await message.answer("❌ Vui lòng nhập số thứ tự hợp lệ.")
     except:
+        await state.finish()
         return await message.answer("❌ Vui lòng nhập số thứ tự hợp lệ.")
+
     package = INVESTMENTS[choice]
     user = get_or_create_user(message.from_user.id)
     if user["balance"] < package["amount"]:
         await state.finish()
         return await message.answer("❌ Bạn không đủ số dư để đầu tư gói này.")
+
     user["balance"] -= package["amount"]
     invest(message.from_user.id, package)
     await state.finish()
