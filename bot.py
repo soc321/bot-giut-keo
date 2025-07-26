@@ -89,15 +89,20 @@ async def ask_deposit(message: types.Message, state: FSMContext):
 async def confirm_deposit(message: types.Message, state: FSMContext):
     text = message.text.strip()
     if not text.isdigit():
+        await state.finish()
         return await message.answer("❌ Vui lòng nhập số hợp lệ (> 1000đ).")
 
     amount = int(text)
     if amount < 1000:
+        await state.finish()
         return await message.answer("❌ Vui lòng nhập số hợp lệ (> 1000đ).")
 
+    # Lưu data
     data = load_users()
-    user = get_or_create_user(message.from_user.id, data)
-    user["deposits"].append({
+    uid = str(message.from_user.id)
+    if uid not in data:
+        data[uid] = get_or_create_user(uid, data)
+    data[uid]["deposits"].append({
         "amount": amount,
         "time": current_time()
     })
@@ -106,7 +111,7 @@ async def confirm_deposit(message: types.Message, state: FSMContext):
     await message.answer(
         f"✅ Yêu cầu nạp {amount:,}đ đã được ghi nhận.\n\n"
         f"📌 Vui lòng chuyển khoản tới:\n🏦 {BOT_BANK_NAME} - {BOT_BANK_NUMBER}\n"
-        f"📄 Nội dung: NAP {message.from_user.id}"
+        f"📄 Nội dung: NAP {uid}"
     )
     await state.finish()
 
