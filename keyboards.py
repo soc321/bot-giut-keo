@@ -1,16 +1,13 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 def main_keyboard(is_admin=False):
-    kb = [
-        [KeyboardButton("💼 Đầu Tư"), KeyboardButton("💸 Rút Lãi")],
-        [KeyboardButton("💳 Nạp Tiền"), KeyboardButton("👤 Tài Khoản")]
-    ]
+    kb = ReplyKeyboardMarkup(resize_keyboard=True)
+    kb.row(KeyboardButton("💼 Đầu Tư"), KeyboardButton("💸 Rút Lãi"))
+    kb.row(KeyboardButton("💳 Nạp Tiền"), KeyboardButton("👤 Tài Khoản"))
     if is_admin:
-        kb.append([KeyboardButton("⚙️ Admin Panel")])
-    return ReplyKeyboardMarkup(resize_keyboard=True).add(*[btn for row in kb for btn in row])
+        kb.add(KeyboardButton("⚙️ Admin Panel"))
+    return kb
 
-admin_panel_kb = ReplyKeyboardMarkup(resize_keyboard=True).add(
-    KeyboardButton("📥 Duyệt Nạp"),
-    KeyboardButton("📊 Thống Kê"),
-    KeyboardButton("🔙 Quay Lại")
-)
+admin_panel_kb = ReplyKeyboardMarkup(resize_keyboard=True)
+admin_panel_kb.row(KeyboardButton("📥 Duyệt Nạp"), KeyboardButton("📊 Thống Kê"))
+admin_panel_kb.add(KeyboardButton("🔙 Quay Lại"))
