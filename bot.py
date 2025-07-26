@@ -2,7 +2,6 @@ from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
-from aiogram.types import ReplyKeyboardRemove
 from datetime import datetime
 from config import TOKEN, ADMIN_IDS, INVESTMENTS, BOT_BANK_NAME, BOT_BANK_NUMBER
 from keyboards import main_keyboard, admin_panel_kb
@@ -13,7 +12,7 @@ import asyncio
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
 
-# ======= Start =======
+# ========== Start ==========
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message, state: FSMContext):
     await state.finish()
@@ -21,8 +20,7 @@ async def start(message: types.Message, state: FSMContext):
     get_or_create_user(message.from_user.id)
     await message.answer("🎉 Chào mừng đến với bot đầu tư!", reply_markup=main_keyboard(is_admin))
 
-
-# ======= Đầu Tư =======
+# ========== Đầu Tư ==========
 @dp.message_handler(Text("💼 Đầu Tư"))
 async def invest_menu(message: types.Message, state: FSMContext):
     await state.finish()
@@ -35,6 +33,7 @@ async def invest_menu(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=InvestmentStates.waiting_for_package_choice)
 async def invest_choose(message: types.Message, state: FSMContext):
+    data = load_users()
     try:
         choice = int(message.text.strip()) - 1
         if choice < 0 or choice >= len(INVESTMENTS):
@@ -44,7 +43,6 @@ async def invest_choose(message: types.Message, state: FSMContext):
         return await message.answer("❌ Vui lòng nhập số thứ tự hợp lệ.")
 
     package = INVESTMENTS[choice]
-    data = load_users()
     user = get_or_create_user(message.from_user.id, data)
     if user["balance"] < package["amount"]:
         await state.finish()
@@ -56,8 +54,7 @@ async def invest_choose(message: types.Message, state: FSMContext):
     await state.finish()
     await message.answer(f"✅ Đầu tư {package['name']} thành công!")
 
-
-# ======= Rút Lãi =======
+# ========== Rút Lãi ==========
 @dp.message_handler(Text("💸 Rút Lãi"))
 async def ask_withdraw(message: types.Message, state: FSMContext):
     await state.finish()
@@ -70,20 +67,18 @@ async def ask_withdraw(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=WithdrawStates.waiting_for_amount)
 async def process_withdraw(message: types.Message, state: FSMContext):
+    await state.finish()
     try:
         amount = int(message.text.strip())
     except:
-        await state.finish()
         return await message.answer("❌ Vui lòng nhập số tiền hợp lệ.")
 
     if withdraw(message.from_user.id, amount):
         await message.answer(f"✅ Đã gửi yêu cầu rút {amount:,}đ. Admin sẽ xử lý sớm.")
     else:
         await message.answer("❌ Số tiền không hợp lệ hoặc vượt quá lãi khả dụng.")
-    await state.finish()
 
-
-# ======= Nạp Tiền =======
+# ========== Nạp Tiền ==========
 @dp.message_handler(Text("💳 Nạp Tiền"))
 async def ask_deposit(message: types.Message, state: FSMContext):
     await state.finish()
@@ -114,8 +109,7 @@ async def confirm_deposit(message: types.Message, state: FSMContext):
     )
     await state.finish()
 
-
-# ======= Tài Khoản =======
+# ========== Tài Khoản ==========
 @dp.message_handler(Text("👤 Tài Khoản"))
 async def account_info(message: types.Message, state: FSMContext):
     await state.finish()
@@ -131,8 +125,7 @@ async def account_info(message: types.Message, state: FSMContext):
     )
     await message.answer(text)
 
-
-# ======= Cập nhật STK =======
+# ========== Cập nhật STK ==========
 @dp.message_handler(commands=["bank"])
 async def set_bank(message: types.Message, state: FSMContext):
     await state.finish()
@@ -147,8 +140,7 @@ async def set_bank(message: types.Message, state: FSMContext):
     except:
         await message.answer("❌ Sai cú pháp. Dùng: /bank TênNH STK")
 
-
-# ======= Admin Panel =======
+# ========== Admin Panel ==========
 @dp.message_handler(Text("⚙️ Admin Panel"))
 async def admin_panel(message: types.Message, state: FSMContext):
     await state.finish()
@@ -202,16 +194,7 @@ async def back(message: types.Message, state: FSMContext):
     is_admin = str(message.from_user.id) in ADMIN_IDS
     await message.answer("⬅️ Quay lại menu chính", reply_markup=main_keyboard(is_admin))
 
-
-# ======= Chặn nhập sai khi đang FSM =======
-@dp.message_handler(lambda message: True, state="*")
-async def block_unexpected_input(message: types.Message, state: FSMContext):
-    current_state = await state.get_state()
-    if current_state:
-        await message.answer("⚠️ Bạn đang thao tác, hãy hoàn thành trước khi làm việc khác.")
-
-
-# ======= Auto lãi mỗi ngày =======
+# ========== Auto lãi mỗi ngày ==========
 async def auto_profit_loop():
     while True:
         data = load_users()
@@ -220,8 +203,7 @@ async def auto_profit_loop():
         save_users(data)
         await asyncio.sleep(86400)
 
-
-# ======= Run Bot =======
+# ========== Run Bot ==========
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.create_task(auto_profit_loop())
