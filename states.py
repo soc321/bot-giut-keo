@@ -1,10 +1,12 @@
 from aiogram.fsm.state import State, StatesGroup
 
-class InvestmentStates(StatesGroup):
-    waiting_for_package_choice = State()
+class DepositState(StatesGroup):
+    amount = State()
 
-class WithdrawStates(StatesGroup):
-    waiting_for_amount = State()
+class WithdrawState(StatesGroup):
+    amount = State()
 
-class DepositStates(StatesGroup):
-    waiting_for_amount = State()
+class BankInfoState(StatesGroup):
+    bank = State()
+    account = State()
+    name = State()
