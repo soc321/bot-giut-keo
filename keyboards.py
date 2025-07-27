@@ -1,17 +1,14 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
-main_menu = ReplyKeyboardMarkup(
-    keyboard=[
-        [KeyboardButton(text="💰 Nạp tiền"), KeyboardButton(text="📤 Rút tiền")],
-        [KeyboardButton(text="📄 Tài khoản")],
-    ],
-    resize_keyboard=True
-)
+def user_menu():
+    return ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[
+        [KeyboardButton("💼 Đầu tư"), KeyboardButton("💳 Nạp tiền")],
+        [KeyboardButton("💸 Rút lãi"), KeyboardButton("📄 Tài khoản")],
+        [KeyboardButton("⚙️ Admin Panel")]
+    ])
 
-admin_menu = ReplyKeyboardMarkup(
-    keyboard=[
-        [KeyboardButton(text="📥 Duyệt nạp")],
-        [KeyboardButton(text="🏠 Về menu")],
-    ],
-    resize_keyboard=True
-)
+def admin_menu():
+    return ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[
+        [KeyboardButton("📥 Duyệt nạp"), KeyboardButton("📊 Thống kê")],
+        [KeyboardButton("🔙 Quay lại")]
+    ])
